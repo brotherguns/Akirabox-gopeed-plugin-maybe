@@ -6,14 +6,12 @@ gopeed.events.onResolve(async (ctx) => {
 
   const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
-  // ── Step 1: Load the /file page ──────────────────────────────────────────
   const pageResp = await fetch(pageUrl, {
     headers: { "User-Agent": UA, "Accept": "text/html,*/*" },
     redirect: "follow",
   });
   let html = await pageResp.text();
 
-  // Try to grab Set-Cookie from the response
   let capturedCookies = "";
   try {
     const raw = pageResp.headers.get("set-cookie") || "";
@@ -32,11 +30,9 @@ gopeed.events.onResolve(async (ctx) => {
     html = await r2.text();
   }
 
-  // ── Step 2: Get CSRF token ────────────────────────────────────────────────
   const csrfMatch = html.match(/<meta[^>]+name="csrf-token"[^>]+content="([^"]+)"/i);
   const csrfToken = csrfMatch ? csrfMatch[1] : "NOT_FOUND";
 
-  // ── Step 3: POST to /file/generate ───────────────────────────────────────
   const generateUrl = baseUrl + "/" + fileId + "/file/generate";
   const cookieHeader = "rqf=" + fileId + (capturedCookies ? "; " + capturedCookies : "");
 
@@ -56,18 +52,43 @@ gopeed.events.onResolve(async (ctx) => {
     redirect: "follow",
   });
 
+  const status = genResp.status;
   const genText = await genResp.text();
 
-  // ── DEBUG: Throw everything as an error so you can see it ─────────────────
-  // Read this error in Gopeed's task list.
-  // Copy the "download_link" URL shown and paste it here:
-  throw new Error(
-    "=== DEBUG (remove this throw when done) ===\n" +
-    "fileId: " + fileId + "\n" +
-    "csrfToken: " + csrfToken.slice(0, 20) + "...\n" +
-    "capturedCookies: " + (capturedCookies || "(none — Set-Cookie not accessible)") + "\n" +
-    "POST status: " + genResp.status + "\n" +
-    "Raw response (first 500 chars):\n" +
-    genText.slice(0, 500)
-  );
+  let downloadLink = "NOT_FOUND";
+  try {
+    const j = JSON.parse(genText);
+    downloadLink = j.download_link || j.url || j.link || "KEY_MISSING";
+  } catch (_) {
+    downloadLink = "NOT_JSON:" + genText.slice(0, 80).replace(/\s+/g, " ");
+  }
+
+  const cookieStatus = capturedCookies ? "YES" : "NONE";
+  const csrfStatus   = csrfToken !== "NOT_FOUND" ? "OK" : "MISSING";
+
+  // Pack everything into the task name so it shows in Gopeed's task list
+  const debugName =
+    "[S=" + status + "]" +
+    "[CSRF=" + csrfStatus + "]" +
+    "[CK=" + cookieStatus + "]" +
+    "[LINK=" + downloadLink + "]";
+
+  const resolvedUrl = downloadLink.startsWith("http")
+    ? downloadLink
+    : "https://akirabox.to/debug-failed-no-url";
+
+  ctx.res = {
+    name: debugName,
+    files: [{
+      name: debugName,
+      req: {
+        url: resolvedUrl,
+        headers: {
+          "User-Agent": UA,
+          "Referer":    baseUrl + "/",
+          "Cookie":     cookieHeader,
+        },
+      },
+    }],
+  };
 });
