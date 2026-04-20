@@ -2,34 +2,21 @@
   "name": "gopeed-extension-akirabox",
   "author": "user",
   "title": "AkiraBox Downloader",
-  "description": "Resolves AkiraBox file pages to direct download links. Supports akirabox.to and akirabox.com file URLs.",
+  "description": "Resolves AkiraBox file pages to direct download links. Supports akirabox.to and akirabox.com.",
   "icon": "",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "homepage": "",
-  "repository": {
-    "url": ""
-  },
+  "repository": { "url": "" },
   "scripts": [
     {
       "event": "onResolve",
       "match": {
         "urls": [
           "*://akirabox.to/*/file",
-          "*://akirabox.com/*/file",
-          "*://akirabox.to/*/file/*",
-          "*://akirabox.com/*/file/*"
+          "*://akirabox.com/*/file"
         ]
       },
       "entry": "index.js"
-    }
-  ],
-  "settings": [
-    {
-      "name": "cookie",
-      "title": "Session Cookie (optional)",
-      "description": "Paste your akirabox.to cookie here if you have a premium account (from browser DevTools → Application → Cookies)",
-      "type": "string",
-      "value": ""
     }
   ]
 }
